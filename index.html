@@ -90,7 +90,7 @@ details.tips li{margin-bottom:6px}
 .ck.y{background:rgba(61,220,132,.18);color:#7CF0AE}.ck.n{background:rgba(255,120,90,.2);color:#FFB19E}
 .cam-actions{display:flex;gap:8px;padding:8px 12px 14px}
 .cam-actions .btn{padding:13px;font-size:16px}
-.guide{position:absolute;inset:0;background:rgba(14,19,26,.94);overflow:auto;padding:18px 18px 24px;display:none}
+.guide{position:fixed;inset:0;z-index:50;background:#0E131A;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(18px + env(safe-area-inset-top)) 18px 0;display:none;color:#fff}.guide-in{max-width:560px;margin:0 auto;padding-bottom:150px}.guide-act{position:fixed;left:0;right:0;bottom:0;z-index:51;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#0E131A 25%);display:none;text-align:center}.guide-act .btn{max-width:560px;margin:0 auto}.guide.on+.guide-act,.guide-act.on{display:block}
 .guide.on{display:block}
 .guide h2{font-size:24px;color:#fff}
 .g-view{display:inline-block;margin:6px 0 12px;padding:4px 10px;border-radius:14px;font-size:14px;font-weight:700;background:rgba(232,97,29,.25);color:#FFB48A}
@@ -241,7 +241,8 @@ details.tips li{margin-bottom:6px}
     <div class="holdbar" id="holdbar"><b id="holdfill"></b></div>
     <div class="cd" id="cd"></div>
     <div class="big"><div class="big-t" id="big-t">Getting ready</div><div class="big-s" id="big-s"></div></div>
-    <div class="guide" id="guide">
+  </div></div>
+  <div class="guide" id="guide"><div class="guide-in">
       <div class="g-step" id="g-step"></div>
       <h2 id="g-name"></h2>
       <div class="g-view" id="g-view"></div>
@@ -250,10 +251,11 @@ details.tips li{margin-bottom:6px}
       <div class="g-row"><span>Hands</span><span id="g-hands"></span></div>
       <div class="g-instr" id="g-instr"></div>
       <div class="g-warn" id="g-warn" style="display:none"></div>
+  </div></div>
+  <div class="guide-act" id="guide-act">
       <button class="btn" id="btn-ready">Position the client</button>
       <button class="link" id="btn-skip" style="color:#FFB48A;display:block;margin:10px auto 0">Skip this movement</button>
-    </div>
-  </div></div>
+  </div>
   <div class="checks" id="checks"></div>
   <div class="cam-actions" id="cam-actions">
     <button class="btn dark" id="btn-go">Start now</button>
@@ -1004,7 +1006,7 @@ function beginMovement(){
 }
 function setPhase(p){
   S.phase=p;
-  $('guide').classList.toggle('on',p==='guide');
+  $('guide').classList.toggle('on',p==='guide');$('guide-act').classList.toggle('on',p==='guide');if(p==='guide')$('guide').scrollTop=0;
   $('btn-go').style.display=p==='position'?'':'none';
   $('btn-done').style.display=(p==='still'||p==='go')?'':'none';
   $('rec').classList.toggle('on',p==='still'||p==='go');
