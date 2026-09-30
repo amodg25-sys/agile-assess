@@ -941,8 +941,10 @@ function loadOffline(){
 // ── CAMERA ──────────────────────────────────────────────────────────────
 async function openCamera(){
   if(S.stream)S.stream.getTracks().forEach(t=>t.stop());
-  const size=isMobile?{width:{ideal:720},height:{ideal:1280}}:{width:{ideal:1280},height:{ideal:720}};
-  const video=S.deviceId?{deviceId:{exact:S.deviceId},...size,frameRate:{ideal:30}}:{facingMode:{ideal:S.facing},...size,frameRate:{ideal:30}};
+  // Phones: request NO size — any size request makes Android Chrome crop the sensor (narrow, zoomed view).
+  // The native uncropped view is the widest field of view; the pose model only needs a small image anyway.
+  const size=isMobile?{}:{width:{ideal:1280},height:{ideal:720}};
+  const video=S.deviceId?{deviceId:{exact:S.deviceId},...size}:{facingMode:{ideal:S.facing},...size};
   let stream;
   try{stream=await navigator.mediaDevices.getUserMedia({video,audio:false});}
   catch(e){if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;stream=await navigator.mediaDevices.getUserMedia({video:S.deviceId?{deviceId:{exact:S.deviceId}}:{facingMode:S.facing},audio:false});}
@@ -960,12 +962,6 @@ async function openCamera(){
     const same=cams.filter(d=>{const l=d.label||'';if(!l)return true;return facing==='user'?/front|user|face/i.test(l)||!/back|rear|environment/i.test(l):/back|rear|environment/i.test(l)||!/front|user|face/i.test(l);});
     S.devices=same.length?same:cams;}catch(e){S.devices=[];}
   $('btn-lens').style.display=S.devices.length>1?'':'none';
-  if(isMobile&&window.innerHeight>window.innerWidth){
-    const s0=track.getSettings?track.getSettings():{};
-    if(s0.width&&s0.height&&s0.width>s0.height){
-      try{await Promise.race([track.applyConstraints({aspectRatio:{ideal:9/16},resizeMode:'crop-and-scale'}),sleep(2000)]);}catch(e){}
-    }
-  }
   const v=$('vid');v.srcObject=stream;
   await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('The camera did not start in time.')),12000);v.onloadedmetadata=()=>{clearTimeout(to);v.play().then(res).catch(rej);};});
   sizeStage();
