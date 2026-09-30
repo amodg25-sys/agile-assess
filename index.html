@@ -65,7 +65,7 @@ details.tips li{margin-bottom:6px}
 .cam-top{display:flex;align-items:center;gap:8px;padding:10px 12px}
 .cam-top .t{font-weight:700;font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:18px;padding:7px 12px;font-size:13px}
-.stage-wrap{display:flex;justify-content:center;padding:0 8px}
+.stage-wrap{display:flex;justify-content:center;padding:0 4px}
 .stage{position:relative;width:100%;max-height:calc(100dvh - 190px);border-radius:12px;overflow:hidden;background:#000}
 .mirror{position:absolute;inset:0}
 .mirror.flip{transform:scaleX(-1)}
@@ -570,9 +570,11 @@ MV.overhead={name:'Overhead reach',view:'front',frame:'upper',type:'rep',startPo
   observe:['Scapular winging — view from behind','Rib flare / lumbar arch — view from the side','Scapular rhythm'],
 };
 
-MV.sts={name:'Sit-to-stand',view:'side',frame:'full',type:'rep',startPose:'sit',minExc:40,dir:'max',
-  signal:(f,ctx)=>M.kneeSide2(f,ctx),
-  prep:ctx=>{},
+MV.sts={name:'Sit-to-stand',view:'side',frame:'full',type:'rep',startPose:'sit',minExc:0.3,dir:'max',
+  // Reps are found from how far the hips rise, in torso-lengths — robust to chair, clothing and camera angle
+  signal:(f,ctx)=>{const h=mid(f.k[P.LH],f.k[P.RH]);return h&&ctx.bTorso?-h.y/ctx.bTorso:null;},
+  prep:ctx=>{ctx.bTorso=baseMed(ctx,f=>d2(mid(f.k[P.LS],f.k[P.RS]),mid(f.k[P.LH],f.k[P.RH])))||
+    med(ctx.frames.map(f=>d2(mid(f.k[P.LS],f.k[P.RS]),mid(f.k[P.LH],f.k[P.RH]))));},
   rep:(ctx,seg)=>{const w=winOf(ctx,seg,3);const fr=ctx.frames;const rel=relW(w,[ctx.S.S,ctx.S.H,ctx.S.K,ctx.S.A]);
     const rise=fr.slice(seg.a,seg.p+1);
     const topH=maxv(fr.slice(seg.a,seg.b+1).map(f=>M.hip2(f,ctx)));
@@ -950,6 +952,13 @@ async function openCamera(){
     const same=cams.filter(d=>{const l=d.label||'';if(!l)return true;return facing==='user'?/front|user|face/i.test(l)||!/back|rear|environment/i.test(l):/back|rear|environment/i.test(l)||!/front|user|face/i.test(l);});
     S.devices=same.length?same:cams;}catch(e){S.devices=[];}
   $('btn-lens').style.display=S.devices.length>1?'':'none';
+  if(isMobile&&window.innerHeight>window.innerWidth){
+    const s0=track.getSettings?track.getSettings():{};
+    if(s0.width&&s0.height&&s0.width>s0.height){
+      try{await track.applyConstraints({aspectRatio:{exact:9/16},height:{ideal:1280},resizeMode:'crop-and-scale'});}
+      catch(e){try{await track.applyConstraints({aspectRatio:{ideal:9/16},resizeMode:'crop-and-scale'});}catch(e2){}}
+    }
+  }
   const v=$('vid');v.srcObject=stream;
   await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('The camera did not start in time.')),12000);v.onloadedmetadata=()=>{clearTimeout(to);v.play().then(res).catch(rej);};});
   sizeStage();
@@ -957,7 +966,7 @@ async function openCamera(){
 function sizeStage(){
   const v=$('vid');const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return;
   S.W=vw;S.H=vh;const c=$('cvs');if(c.width!==vw||c.height!==vh){c.width=vw;c.height=vh;}
-  const availW=Math.min(window.innerWidth-16,900),availH=Math.max(240,window.innerHeight-190);
+  const availW=Math.min(window.innerWidth-(isMobile?8:16),900),availH=Math.max(240,window.innerHeight-(isMobile?150:190));
   const sc=Math.min(availW/vw,availH/vh);
   $('stage').style.width=Math.round(vw*sc)+'px';$('stage').style.height=Math.round(vh*sc)+'px';
 }
