@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1C2430">
+<title>AGILE Coach — Assessments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ag:#E8611D;--ag-d:#B9480F;--ink:#1C2430;--ink2:#4A5566;--ink3:#7D8797;--paper:#F3F5F7;--line:#DCE1E7;--ok:#1E8A4C;--warn:#B86E00;--bad:#C4302B;--cc:#4A5BD4;
+  --f:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);color:var(--ink);background:var(--paper);font-size:16px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom)}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ag);outline-offset:2px}
+.wrap{max-width:820px;margin:0 auto;padding:18px 16px 60px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--ag);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px}
+h1{font-size:22px}h2{font-size:18px;margin-bottom:10px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+label{display:block;font-size:14px;color:var(--ink2);margin:0 0 5px}
+.field{margin-bottom:12px}
+.btn{border:0;border-radius:9px;padding:12px 16px;font-size:16px;font-weight:700;background:var(--ag);color:#fff}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:7px 11px;font-size:14px}
+.btn:disabled{opacity:.45}
+.tabs{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:14px;background:#fff}
+.tabs button{flex:1;border:0;background:none;padding:11px;font-size:15px;color:var(--ink2)}
+.tabs button.on{background:var(--ink);color:#fff;font-weight:700}
+.muted{color:var(--ink3);font-size:14px}
+.err{color:var(--bad);font-size:14px;margin-top:8px;min-height:1em}
+.r-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.r-name{font-weight:700;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{font-size:13px;border-radius:12px;padding:3px 9px;background:#EEF1F4;color:var(--ink2);font-variant-numeric:tabular-nums}
+.chip b{margin-left:4px}
+.s-ok b{color:var(--ok)}.s-warn b{color:var(--warn)}.s-bad b{color:var(--bad)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.mv{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.mv label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0;color:var(--ink);font-size:14px;background:#fff;cursor:pointer}
+.mv input{width:auto}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.pre{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 11px;font-size:13px}
+.newcode{background:#FDEEE6;border:1px solid #F5C3A6;border-radius:10px;padding:14px;margin-top:12px;display:none}
+.big-code{font-size:32px;font-weight:700;letter-spacing:4px;color:var(--ag-d);margin:4px 0}
+.st{font-size:12px;font-weight:700;border-radius:10px;padding:2px 8px}
+.st.active{background:#E3F5EA;color:var(--ok)}.st.used{background:#E8EBFB;color:var(--cc)}.st.revoked,.st.expired{background:#FBE7E6;color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--ink3);font-weight:400;font-size:13px}
+.code-cell{font-weight:700;letter-spacing:1px}
+.search{margin-bottom:12px}
+@media (max-width:560px){.hide-s{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><div class="brand-mark">AG</div><div><h1>Assessments</h1><div class="muted">AGILE coach area</div></div></div>
+    <button class="btn sec sm" id="btn-out" style="display:none">Log out</button>
+  </div>
+
+  <div id="login" class="card" style="max-width:400px">
+    <h2>Coach login</h2>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    <button class="btn" id="btn-login">Log in</button>
+    <div class="err" id="login-err"></div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="tabs"><button class="on" data-t="reports">Reports</button><button data-t="codes">Client codes</button></div>
+
+    <div id="t-reports">
+      <input class="search" id="q" placeholder="Search by client name">
+      <div id="reports"></div>
+    </div>
+
+    <div id="t-codes" style="display:none">
+      <div class="card">
+        <h2>New assessment code</h2>
+        <div class="field"><label for="c-name">Client name</label><input id="c-name" placeholder="e.g. Alpana Barve"></div>
+        <label>Movements</label>
+        <div class="presets"><button class="pre" data-p="core">Core 5</button><button class="pre" data-p="small">Small space</button><button class="pre" data-p="all">All 11</button><button class="pre" data-p="none">Clear</button></div>
+        <div class="mv" id="mv"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field"><label for="c-mode">Session type</label><select id="c-mode"><option>Online – self-serve</option><option>Online – guided call</option><option>In person</option></select></div>
+          <div class="field"><label for="c-days">Code valid for</label><select id="c-days"><option value="3">3 days</option><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option></select></div>
+        </div>
+        <button class="btn" id="btn-new">Create code</button>
+        <div class="err" id="new-err"></div>
+        <div class="newcode" id="newcode">
+          <div class="muted">Code for <b id="nc-name"></b></div>
+          <div class="big-code" id="nc-code"></div>
+          <div class="acts" style="margin-top:8px">
+            <button class="btn sm" id="btn-wa">Copy WhatsApp message</button>
+            <button class="btn sec sm" id="btn-link">Copy link</button>
+            <button class="btn sec sm" id="btn-open">Open tracker now</button>
+          </div>
+          <div class="muted" id="nc-copied" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>All codes</h2>
+        <div style="overflow-x:auto"><table><thead><tr><th>Code</th><th>Client</th><th class="hide-s">Created</th><th>Status</th><th></th></tr></thead><tbody id="codes"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+const MOVES=[['squat','Squat'],['overhead','Overhead reach'],['lateralLunge','Lateral lunge'],['balance','Single leg balance'],['march','Marching in place'],['thoracic','Thoracic rotation'],['hinge','Hip hinge'],['forwardFold','Forward fold'],['lunge','Forward lunge'],['sts','Sit-to-stand'],['gait','Gait (walking)']];
+const PRE={core:['squat','overhead','balance','hinge','sts'],small:['squat','overhead','balance','march','thoracic','sts'],all:MOVES.map(m=>m[0]),none:[]};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let KEY=sessionStorage.getItem('agile_coach')||'',DATA={reports:[],codes:[]};
+async function api(action,extra){
+  const r=await fetch('/api/coach',{method:'POST',headers:{'Content-Type':'application/json','x-coach-key':KEY},body:JSON.stringify({action,...extra})});
+  const j=await r.json().catch(()=>({ok:false,error:'Server error'}));
+  if(r.status===401){logout();throw new Error(j.error||'Please log in again.');}
+  if(!j.ok)throw new Error(j.error||'Something went wrong.');
+  return j;
+}
+function fmtDate(d){const x=new Date(d);return x.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+', '+x.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});}
+function sc(s){return s==null?'':s>=8?'s-ok':s>=6?'s-warn':'s-bad';}
+function codeStatus(c){if(c.status!=='active')return c.status;if(c.expires_at&&new Date(c.expires_at)<new Date())return'expired';return'active';}
+
+async function login(){
+  KEY=$('pw').value;$('login-err').textContent='';$('btn-login').disabled=true;
+  try{await api('login');sessionStorage.setItem('agile_coach',KEY);await enter();}
+  catch(e){$('login-err').textContent=e.message;}
+  $('btn-login').disabled=false;
+}
+function logout(){KEY='';sessionStorage.removeItem('agile_coach');$('app').style.display='none';$('btn-out').style.display='none';$('login').style.display='';}
+async function enter(){$('login').style.display='none';$('app').style.display='';$('btn-out').style.display='';await load();}
+async function load(){
+  try{const j=await api('list');DATA={reports:j.reports||[],codes:j.codes||[]};renderReports();renderCodes();}
+  catch(e){$('reports').innerHTML=`<div class="card err">${esc(e.message)}</div>`;}
+}
+function renderReports(){
+  const q=$('q').value.trim().toLowerCase();
+  const list=DATA.reports.filter(r=>!q||(r.client_name||'').toLowerCase().includes(q));
+  if(!list.length){$('reports').innerHTML=`<div class="card muted">${DATA.reports.length?'No reports match that name.':'No reports yet. Create a code for a client on the “Client codes” tab — their report appears here as soon as they finish.'}</div>`;return;}
+  $('reports').innerHTML=list.map(r=>{const m=(r.summary&&r.summary.movements)||[];
+    return`<div class="card"><div class="r-head"><div><div class="r-name">${esc(r.client_name)}</div><div class="muted">${fmtDate(r.created_at)} · code ${esc(r.code||'—')}${r.summary&&r.summary.mode?' · '+esc(r.summary.mode):''}</div></div></div>
+    <div class="chips">${m.map(x=>`<span class="chip ${sc(x.score)}">${esc(x.name)}<b>${x.score!=null?x.score+'/10':'—'}</b></span>`).join('')}</div>
+    <div class="acts"><button class="btn sm" data-open="${r.id}">Open report</button><button class="btn sec sm" data-pdf="${r.id}">PDF</button><button class="btn sec sm" data-dl="${r.id}">HTML</button></div></div>`;}).join('');
+}
+async function getReport(id,btn){
+  const t=btn.textContent;btn.textContent='Loading…';btn.disabled=true;
+  try{return await api('report',{id});}catch(e){alert(e.message);return null;}finally{btn.textContent=t;btn.disabled=false;}
+}
+$('reports').onclick=async e=>{
+  const o=e.target.closest('[data-open]'),d=e.target.closest('[data-dl]'),pf=e.target.closest('[data-pdf]');
+  if(pf){const j=await getReport(pf.dataset.pdf,pf);if(!j)return;const t=pf.textContent;pf.textContent='Making PDF…';pf.disabled=true;
+    try{await makePdf(j.html,'AGILE_'+String(j.client_name||'client').replace(/[^a-z0-9]+/gi,'_')+'_'+String(j.created_at).slice(0,10)+'.pdf');}
+    catch(err){alert('Could not make the PDF: '+err.message+'\nOpen the report and use Print → Save as PDF instead.');}
+    finally{pf.textContent=t;pf.disabled=false;}return;}
+  if(o){const w=window.open('','_blank');const j=await getReport(o.dataset.open,o);if(!j){w&&w.close();return;}
+    const url=URL.createObjectURL(new Blob([j.html],{type:'text/html'}));if(w)w.location=url;else location.href=url;}
+  if(d){const j=await getReport(d.dataset.dl,d);if(!j)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j.html],{type:'text/html'}));
+    a.download='AGILE_'+String(j.client_name||'client').replace(/[^a-z0-9]+/gi,'_')+'_'+String(j.created_at).slice(0,10)+'.html';document.body.appendChild(a);a.click();a.remove();}
+};
+function renderMv(sel){$('mv').innerHTML=MOVES.map(([id,n])=>`<label><input type="checkbox" value="${id}" ${sel.includes(id)?'checked':''}> ${esc(n)}</label>`).join('');}
+function renderCodes(){
+  $('codes').innerHTML=DATA.codes.map(c=>{const st=codeStatus(c);
+    return`<tr><td class="code-cell">${esc(c.code)}</td><td>${esc(c.client_name)}<div class="muted">${(c.movements||[]).length} movements</div></td><td class="hide-s muted">${fmtDate(c.created_at)}</td>
+    <td><span class="st ${st}">${st}</span></td><td>${st==='active'?`<button class="btn sec sm" data-rev="${esc(c.code)}">Cancel</button>`:`<button class="btn sec sm" data-act="${esc(c.code)}">Reopen</button>`}</td></tr>`;}).join('')||'<tr><td colspan="5" class="muted">No codes yet.</td></tr>';
+}
+$('codes').onclick=async e=>{
+  const r=e.target.closest('[data-rev]'),a=e.target.closest('[data-act]');const b=r||a;if(!b)return;
+  if(r&&!confirm('Cancel code '+r.dataset.rev+'? The client will no longer be able to use it.'))return;
+  b.disabled=true;try{await api('setstatus',{code:(r||a).dataset[r?'rev':'act'],status:r?'revoked':'active'});await load();}catch(err){alert(err.message);b.disabled=false;}
+};
+// Build an A4 PDF inside an isolated off-screen frame so the report's own styles render exactly as on screen
+function makePdf(html,filename){
+  return new Promise((resolve,reject)=>{
+    const id='p'+Math.random().toString(36).slice(2);
+    const lib='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js';
+    const extra=`<style>body{background:#fff!important}.rp{max-width:760px}.snaps{overflow:visible;flex-wrap:nowrap}.snaps figure{flex:0 0 118px;width:118px}.snaps img{width:118px;height:auto;max-height:170px;object-fit:cover}.snaps figcaption{font-size:10px;line-height:1.3}.mvr{border-color:#ccc;page-break-before:always;break-before:page}.snaps,figure{page-break-inside:avoid;break-inside:avoid}</style>
+<script src="${lib}"><\/script><script>
+(async()=>{try{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r;})));
+const blob=await html2pdf().set({margin:[10,8,12,8],image:{type:'jpeg',quality:0.92},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:['tr','figure','.snaps','.fl','.best','.mvr-h','.sum-t']}}).from(document.querySelector('.rp')).outputPdf('blob');
+parent.postMessage({pdf:'${id}',blob},'*');}catch(e){parent.postMessage({pdf:'${id}',error:String(e&&e.message||e)},'*');}})();
+<\/script>`;
+    const doc=html.includes('</body>')?html.replace('</body>',extra+'</body>'):html+extra;
+    const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:820px;height:1200px;border:0';
+    const done=()=>{window.removeEventListener('message',on);clearTimeout(to);f.remove();};
+    const on=ev=>{const d=ev.data||{};if(d.pdf!==id)return;done();if(d.error)return reject(new Error(d.error));
+      const a=document.createElement('a');a.href=URL.createObjectURL(d.blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),5000);resolve();};
+    const to=setTimeout(()=>{done();reject(new Error('timed out'));},90000);
+    window.addEventListener('message',on);f.srcdoc=doc;document.body.appendChild(f);
+  });
+}
+let LAST=null;
+function link(c){return location.origin+'/?c='+c.code;}
+function waMsg(c){const first=c.client_name.split(' ')[0];
+  return`Hi ${first}! Here is your AGILE movement assessment.\n\nOpen this link in Chrome on your phone:\n${link(c)}\n\nYour code: ${c.code}\n\nBefore you start:\n• Wear something fitted, or tuck in your top\n• Clear space and good light in front of you\n• Keep a sturdy chair nearby\n• Prop the phone upright about 8–9 feet away\n\nIt takes about 15 minutes. When you finish, the results come straight to me and I'll go through them with you.\n\n— Amod, AGILE`;}
+async function copy(t,msg){try{await navigator.clipboard.writeText(t);$('nc-copied').textContent=msg;}catch(e){prompt('Copy this:',t);}}
+$('btn-new').onclick=async()=>{
+  $('new-err').textContent='';const movements=[...document.querySelectorAll('#mv input:checked')].map(i=>i.value);
+  $('btn-new').disabled=true;
+  try{const j=await api('newcode',{client_name:$('c-name').value,movements,mode:$('c-mode').value,days:$('c-days').value});LAST=j.code;
+    $('nc-name').textContent=LAST.client_name;$('nc-code').textContent=LAST.code;$('nc-copied').textContent='';$('newcode').style.display='block';$('c-name').value='';await load();}
+  catch(e){$('new-err').textContent=e.message;}
+  $('btn-new').disabled=false;
+};
+$('btn-wa').onclick=()=>LAST&&copy(waMsg(LAST),'Message copied — paste it into WhatsApp.');
+$('btn-link').onclick=()=>LAST&&copy(link(LAST),'Link copied.');
+$('btn-open').onclick=()=>LAST&&window.open(link(LAST),'_blank');
+document.querySelectorAll('.pre').forEach(b=>b.onclick=()=>renderMv(PRE[b.dataset.p]));
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  $('t-reports').style.display=b.dataset.t==='reports'?'':'none';$('t-codes').style.display=b.dataset.t==='codes'?'':'none';});
+$('q').oninput=renderReports;
+$('btn-login').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login();};
+$('btn-out').onclick=logout;
+renderMv(PRE.core);
+if(KEY)enter().catch(()=>logout());
+</script>
+</body>
+</html>

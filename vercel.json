@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "crons": [ { "path": "/api/keepalive", "schedule": "30 3 * * *" } ],
   "headers": [
     { "source": "/(.*)", "headers": [ { "key": "Permissions-Policy", "value": "camera=(self)" } ] }
   ]

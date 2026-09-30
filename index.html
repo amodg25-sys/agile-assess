@@ -40,7 +40,8 @@ h2{font-size:20px;font-weight:700;margin-bottom:6px}
 .mv-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .mv-opt{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;text-align:left;font-size:14px;color:var(--ink)}
 .mv-opt .bx{width:20px;height:20px;border:2px solid var(--line);border-radius:5px;flex-shrink:0;display:grid;place-items:center;font-size:13px;color:#fff}
-.mv-opt.on{border-color:var(--ag)}.mv-opt.on .bx{background:var(--ag);border-color:var(--ag)}
+.mv-opt.on{border-color:var(--ag)}
+.mv-r{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}.mv-r:last-child{border-bottom:0}.mv-r span{color:var(--ink3);font-size:13px}.mv-opt.on .bx{background:var(--ag);border-color:var(--ag)}
 .mv-opt .vw{display:block;font-size:12px;color:var(--ink3)}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{flex:1;border:0;background:#fff;padding:10px 6px;font-size:14px;color:var(--ink2)}
@@ -161,28 +162,22 @@ details.tips li{margin-bottom:6px}
 
 <!-- HOME -->
 <div class="view on" id="v-home"><div class="wrap">
-  <div class="brand"><div class="brand-mark">AG</div><div><div class="brand-t">AGILE Movement Assessment</div><div class="brand-s">v13 · agilefitness.in</div></div></div>
-  <h1>New assessment session</h1>
-  <p class="lede">Pick the movements, set up the phone, and the app guides the client through each one. You get one combined report at the end.</p>
+  <div class="brand"><div class="brand-mark">AG</div><div><div class="brand-t">AGILE Movement Assessment</div><div class="brand-s">AGILE · agilefitness.in</div></div></div>
+  <h1>Movement assessment</h1>
+  <p class="lede">Enter the code your AGILE coach sent you. The app then guides you through each movement, one at a time.</p>
 
-  <div class="sec">
-    <div class="field"><label for="in-name">Client name</label><input id="in-name" autocomplete="off" placeholder="e.g. Alpana Barve"></div>
-    <div class="row2">
-      <div class="field"><label for="in-coach">Assessed by</label><input id="in-coach" value="Amod Ghanekar"></div>
-      <div class="field"><label for="in-mode">Session type</label><select id="in-mode"><option>In person</option><option>Online – guided call</option><option>Online – self-serve</option></select></div>
-    </div>
+  <div class="sec" id="code-box">
+    <div class="field"><label for="in-code">Assessment code</label>
+      <input id="in-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7M3QP" style="font-size:22px;letter-spacing:3px;text-transform:uppercase"></div>
+    <button class="btn dark" id="btn-code">Continue</button>
+    <p class="hint" id="code-msg" style="margin-top:10px"></p>
   </div>
 
+  <div id="setup" style="display:none">
   <div class="sec">
-    <div class="sec-h">Movements <small id="mv-count"></small></div>
-    <div class="presets">
-      <button class="chip" data-preset="core">Core 5</button>
-      <button class="chip" data-preset="small">Small space</button>
-      <button class="chip" data-preset="all">All 11</button>
-      <button class="chip" data-preset="none">Clear</button>
-    </div>
-    <div class="mv-list" id="mv-list"></div>
-    <p class="hint">Front-view movements run first, then side-view, so the client only turns once.</p>
+    <div class="sec-h" id="hello">Hello</div>
+    <p class="hint" style="margin:0 0 8px">Your coach has chosen these movements for you:</p>
+    <div id="mv-read"></div>
   </div>
 
   <div class="sec">
@@ -208,8 +203,18 @@ details.tips li{margin-bottom:6px}
     <p class="hint" style="padding:0 16px 14px">The report shows how clearly each joint was visible. Anything unclear is marked “coach to confirm” instead of being scored wrongly.</p>
   </details>
 
-  <button class="btn" id="btn-start" disabled>Set up camera</button>
-  <p class="privacy">Video stays on this device. Nothing is uploaded.</p>
+  <button class="btn" id="btn-start">Set up camera</button>
+  <p class="privacy">Video stays on this phone. When you finish, only the assessment report — with a few still photos from the session — is sent privately to your AGILE coach.</p>
+  </div>
+</div></div>
+
+<!-- SENT -->
+<div class="view" id="v-sent"><div class="wrap" style="padding-top:12vh;text-align:center">
+  <div class="done-mark" style="margin:0 auto 14px" id="sent-mark">✓</div>
+  <h1 id="sent-t">All done — thank you!</h1>
+  <p class="lede" id="sent-m">Your assessment has been sent to your AGILE coach, who will go through it and share your results and plan with you.</p>
+  <button class="btn" id="btn-resend" style="display:none">Try sending again</button>
+  <p class="hint" id="sent-h"></p>
 </div></div>
 
 <!-- LOADING -->
@@ -273,29 +278,17 @@ details.tips li{margin-bottom:6px}
     <div class="prog"><b id="rest-bar"></b></div>
     <div class="q-list" id="q-list"></div>
   </div>
-  <div class="btn-row" style="margin-bottom:8px"><button class="btn sec2" id="btn-redo">Redo movement</button><button class="btn sec2" id="btn-clip">Save clip</button></div>
+  <div class="btn-row" style="margin-bottom:8px"><button class="btn sec2" id="btn-redo">Redo movement</button></div>
   <button class="btn" id="btn-next">Next movement</button>
   <p class="hint" style="text-align:center">You don't need to wait — anything unfinished is analysed at the end.</p>
 </div></div>
 
 <!-- FINAL PROCESSING -->
 <div class="view" id="v-final"><div class="wrap">
-  <h1>Building the report</h1>
-  <p class="lede">The client can sit down. This usually takes a minute or two.</p>
+  <h1>Finishing up</h1>
+  <p class="lede">You can sit down and relax. Please keep this page open — it takes a minute or two, then sends your assessment to your coach.</p>
   <div class="sec"><div class="prog"><b id="fin-bar"></b></div><div class="q-list" id="fin-list"></div></div>
 </div></div>
-
-<!-- REPORT -->
-<div class="view" id="v-report">
-  <div id="report"></div>
-  <div class="rp noprint" style="padding-top:0">
-    <div class="sec"><div class="sec-h">Coach notes</div><textarea id="notes" rows="4" placeholder="What you saw that the camera can't: spine, feet, scapulae, pain, fatigue…"></textarea></div>
-    <div class="rp-actions">
-      <button class="btn" id="btn-dl">Download report</button>
-      <div class="btn-row" style="margin-top:8px"><button class="btn sec2" id="btn-clips">Save clips</button><button class="btn sec2" id="btn-new">New session</button></div>
-    </div>
-  </div>
-</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════
@@ -891,22 +884,32 @@ function show(id){document.querySelectorAll('.view').forEach(v=>v.classList.remo
 function speak(t){if(!S.voice||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=1.02;speechSynthesis.speak(u);}catch(e){}}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function uuid(){if(crypto.randomUUID)return crypto.randomUUID();const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');return`${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;}
 
 // ── HOME ────────────────────────────────────────────────────────────────
-function renderMvList(){
-  $('mv-list').innerHTML=ORDER.map(id=>`<button class="mv-opt${S.sel.has(id)?' on':''}" data-id="${id}"><span class="bx">${S.sel.has(id)?'✓':''}</span><span>${MV[id].name}<span class="vw">${MV[id].view==='side'?'Side view':'Front view'}${id==='gait'?' · needs 3–4 m':''}${id==='march'?' · small space':''}</span></span></button>`).join('');
-  $('mv-count').textContent=S.sel.size?S.sel.size+' selected':'';
-  document.querySelectorAll('.chip').forEach(c=>{const p=PRESETS[c.dataset.preset];c.classList.toggle('on',p.length>0&&p.length===S.sel.size&&p.every(x=>S.sel.has(x)));});
-  checkStart();
+function renderMvRead(){
+  $('mv-read').innerHTML=S.list.map((id,i)=>`<div class="mv-r">${i+1}. ${esc(MV[id].name)}<span>${MV[id].view==='side'?'Side view':'Front view'}</span></div>`).join('');
 }
-function checkStart(){$('btn-start').disabled=!($('in-name').value.trim()&&S.sel.size);}
+async function checkCode(auto){
+  const code=$('in-code').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length<4){if(!auto)$('code-msg').textContent='Please enter the code from your coach.';return;}
+  $('btn-code').disabled=true;$('code-msg').textContent='Checking…';
+  try{
+    const r=await fetch('/api/check-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+    const j=await r.json();
+    if(!j.ok){$('code-msg').textContent=j.error||'This code is not valid.';$('btn-code').disabled=false;return;}
+    S.code=j.code;S.client=j.client_name;S.mode=j.mode||'';S.coach='AGILE';
+    S.list=ORDER.filter(id=>(j.movements||[]).includes(id));if(!S.list.length)S.list=PRESETS.core.slice();
+    $('hello').textContent='Hello, '+S.client.split(' ')[0];renderMvRead();
+    $('code-box').style.display='none';$('setup').style.display='';
+  }catch(e){$('code-msg').textContent='Could not check the code — please check the internet and try again.';$('btn-code').disabled=false;}
+}
 function segSetup(id,key,map){$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{$(id).querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');S[key]=map?map(b.dataset.v):b.dataset.v;});}
 function initHome(){
-  renderMvList();
-  $('mv-list').onclick=e=>{const b=e.target.closest('.mv-opt');if(!b)return;const id=b.dataset.id;S.sel.has(id)?S.sel.delete(id):S.sel.add(id);renderMvList();};
-  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{S.sel=new Set(PRESETS[c.dataset.preset]);renderMvList();});
   segSetup('seg-cam','facing');segSetup('seg-prec','prec');segSetup('seg-voice','voice',v=>v==='on');
-  $('in-name').oninput=checkStart;
+  $('btn-code').onclick=()=>checkCode(false);
+  $('in-code').onkeydown=e=>{if(e.key==='Enter')checkCode(false);};
+  const pc=new URLSearchParams(location.search).get('c');if(pc){$('in-code').value=pc;checkCode(true);}
   $('btn-start').onclick=startSession;
   $('btn-err-back').onclick=()=>show('v-home');
   $('btn-err-retry').onclick=startSession;
@@ -983,8 +986,8 @@ async function flipCamera(){S.facing=S.facing==='user'?'environment':'user';S.de
 
 // ── SESSION FLOW ────────────────────────────────────────────────────────
 async function startSession(){
-  S.client=$('in-name').value.trim();S.coach=$('in-coach').value.trim();S.mode=$('in-mode').value;
-  S.list=ORDER.filter(id=>S.sel.has(id));S.mi=0;S.queue=[];S.date=new Date();
+  if(!S.code)return;
+  S.mi=0;S.queue=[];S.date=new Date();S.submitId=S.submitId||uuid();
   show('v-load');
   try{
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw Object.assign(new Error('This browser cannot use the camera here. Open the page in Chrome over https.'),{name:'NoAPI'});
@@ -1036,7 +1039,7 @@ function renderRepDots(n){
 function exitSession(){
   if(!confirm('End the session now? Movements already recorded will still go into the report.'))return;
   if(S.rec&&S.rec.state==='recording'){try{S.rec.stop();}catch(e){}}
-  if(S.queue.length)finalStage();else{stopAll();show('v-home');}
+  if(S.queue.length)finalStage();else{stopAll();location.reload();}
 }
 function stopAll(){S.loop=false;if(S.stream)S.stream.getTracks().forEach(t=>t.stop());S.stream=null;try{S.wake&&S.wake.release();}catch(e){}S.wake=null;}
 function nextOrFinish(){if(S.mi<S.list.length)beginMovement();else finalStage();}
@@ -1234,8 +1237,6 @@ function showRest(item){
   $('rest-t').textContent=item.name+' recorded';
   $('rest-s').textContent=S.mi<S.list.length?'Rest for a moment. Analysis runs while the client catches their breath.':'That was the last movement.';
   $('btn-next').textContent=S.mi<S.list.length?'Next: '+MV[S.list[S.mi]].name:'Build the report';
-  $('btn-clip').style.display=item.blob?'':'none';
-  $('btn-clip').onclick=()=>saveClip(item);
   $('btn-redo').onclick=()=>{S.stopProc=true;S.queue=S.queue.filter(q=>q!==item);S.mi--;beginMovement();};
   $('btn-next').onclick=()=>{S.stopProc=true;nextOrFinish();};
   show('v-rest');renderQueue();processQueue();
@@ -1259,7 +1260,8 @@ async function processQueue(){
         try{await loadOffline();frames=await reanalyse(item,t=>{item.pct=t;renderQueue();});thumbs=frames._thumbs;}
         catch(e){console.log('reanalyse error: '+e.message);if(e.message==='stopped'){item.status='wait';item.pct=0;renderQueue();break;}console.warn('Re-analysis failed, using live data',e);frames=null;}
       }
-      const useOff=frames&&frames.filter(f=>f.k).length>=Math.max(15,0.5*item.live.filter(f=>f.k).length);
+      const offPosed=frames?frames.filter(f=>f.k).length:0,liveRate=item.live.length?item.live.filter(f=>f.k).length/item.live.length:1;
+      const useOff=!!frames&&offPosed>=15&&offPosed/frames.length>=liveRate*0.8;
       item.method=useOff?(S.prec==='heavy'?'High-precision re-analysis':'Full-model re-analysis'):'Live tracking (standard)';
       try{
         item.result=analyzeMovement(item.id,useOff?frames:item.live);
@@ -1330,7 +1332,6 @@ async function buildSnaps(item,frames,thumbs){
   }
   return out;
 }
-function saveClip(item){if(!item.blob)return;const ext=/mp4/.test(item.mime)?'mp4':'webm';dl(item.blob,`AGILE_${slug(S.client)}_${slug(item.name)}_${ymd()}.${ext}`);}
 function slug(s){return String(s||'client').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'');}
 function ymd(){const d=S.date||new Date();return d.toISOString().slice(0,10);}
 function dl(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
@@ -1344,8 +1345,36 @@ async function finalStage(){
   S.stopProc=false;
   await processQueue();
   try{S.wake&&S.wake.release();}catch(e){}
-  renderReport();show('v-report');
+  show('v-sent');await submitReport();
 }
+function reportFile(){
+  const css=document.querySelector('style').textContent;
+  return`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AGILE assessment — ${esc(S.client)} — ${ymd()}</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet"><style>${css}</style></head><body>${reportHTML()}</body></html>`;
+}
+function reportSummary(){
+  return{date:(S.date||new Date()).toISOString(),mode:S.mode,movements:S.queue.filter(q=>q.result).map(q=>{const b=bestOf(q);
+    return{id:q.id,name:q.name,score:q.result.score??null,confidence:q.result.confidence||null,best:b?b.label+': '+b.txt:null,method:q.method,error:q.result.error||null};})};
+}
+async function submitReport(){
+  $('sent-mark').textContent='…';$('sent-t').textContent='Sending to your coach…';$('sent-m').textContent='Please keep this page open.';$('btn-resend').style.display='none';$('sent-h').textContent='';
+  if(!S.queue.some(q=>q.result)){$('sent-mark').textContent='!';$('sent-t').textContent='Nothing was recorded';$('sent-m').textContent='No movements were completed, so there is nothing to send. Reload the page to start again.';return;}
+  const body=JSON.stringify({id:S.submitId,code:S.code,summary:reportSummary(),html:reportFile(),device:navigator.userAgent});
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      const r=await fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},body});
+      const j=await r.json().catch(()=>({}));
+      if(j.ok){$('sent-mark').textContent='✓';$('sent-t').textContent='All done — thank you, '+S.client.split(' ')[0]+'!';
+        $('sent-m').textContent='Your assessment has been sent to your AGILE coach, who will go through it and share your results and plan with you.';return;}
+      if(r.status===403||r.status===400){fail(j.error||'The report could not be accepted.');return;}
+    }catch(e){}
+    await sleep(2500);
+  }
+  fail('Could not send — please check the internet connection.');
+  function fail(msg){$('sent-mark').textContent='!';$('sent-t').textContent='Not sent yet';$('sent-m').textContent=msg;
+    $('btn-resend').style.display='';$('btn-resend').onclick=submitReport;$('sent-h').textContent='Keep this page open and tap Try again. Your assessment is saved on this page until it is sent.';}
+}
+window.addEventListener('beforeunload',e=>{if(S.queue&&S.queue.length&&$('sent-mark')&&$('sent-mark').textContent!=='✓'){e.preventDefault();e.returnValue='';}});
 function fmtVal(v,unit){if(!ok(v))return'—';if(unit===' s')return v.toFixed(1)+' s';if(unit==='')return v.toFixed(1);return Math.round(v)+unit.replace(/^%.*/, '%');}
 function bestOf(item){
   const def=MV[item.id],r=item.result;if(!def.best||!r||!r.reps||!r.reps.length)return null;
@@ -1393,21 +1422,6 @@ function reportHTML(){
   h+=`<p class="note" style="text-align:center;margin-top:10px">AGILE — Amod's Guided Integrative Longevity Exercise · agilefitness.in</p></div>`;
   return h;
 }
-function renderReport(){
-  $('report').innerHTML=reportHTML();
-  $('notes').oninput=()=>{};
-  $('btn-dl').onclick=downloadReport;
-  $('btn-clips').style.display=S.queue.some(q=>q.blob)?'':'none';
-  $('btn-clips').onclick=async()=>{for(const q of S.queue){if(q.blob){saveClip(q);await sleep(700);}}};
-  $('btn-new').onclick=()=>{if(confirm('Start a new session? Download the report first if you need it.'))location.reload();};
-}
-function downloadReport(){
-  const css=document.querySelector('style').textContent;
-  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AGILE assessment — ${esc(S.client)} — ${ymd()}</title>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet"><style>${css}</style></head><body>${reportHTML()}</body></html>`;
-  dl(new Blob([html],{type:'text/html;charset=utf-8'}),`AGILE_${slug(S.client)}_assessment_${ymd()}.html`);
-}
-
 initHome();
 
 </script>
