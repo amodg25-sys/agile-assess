@@ -343,21 +343,27 @@ function smooth(arr){
 
 // ── Segment detection on an excursion series (bigger = further from start posture)
 // Start-posture value: median of the still phase; if too few still frames, the typical resting value
-function startValue(ts,s,dir){
-  const still=s.filter((v,i)=>ok(v)&&ts[i]>=0.2&&ts[i]<=2.4);
-  if(still.length>=4)return med(still);
+function startValue(ts,s,dir,minExc){
   const all=s.filter(ok).sort((a,b)=>a-b);if(!all.length)return null;
-  const q=dir==='min'?0.85:dir==='max'?0.15:0.5;return all[Math.min(all.length-1,Math.floor(q*(all.length-1)))];
+  const q=dir==='min'?0.85:dir==='max'?0.15:0.5;const pct=all[Math.min(all.length-1,Math.floor(q*(all.length-1)))];
+  const still=s.filter((v,i)=>ok(v)&&ts[i]>=0.2&&ts[i]<=2.4);
+  if(still.length<4)return pct;
+  const sv=med(still);
+  // If the client spent real time on the 'wrong side' of the still posture, the still phase caught
+  // the wrong position (e.g. standing before sitting down) — use their typical resting level instead
+  if(minExc&&dir!=='mid'){const wrong=all.filter(v=>dir==='max'?v<sv-minExc*0.5:v>sv+minExc*0.5).length;if(wrong>all.length*0.15)return pct;}
+  return sv;
 }
 function detectSegments(ts,exc,minExc,minDur){
   minDur=minDur??0.35;
-  const valid=exc.filter(ok);if(!valid.length)return[];
-  const maxE=Math.max(...valid);if(maxE<minExc)return[];
+  const valid=exc.filter(ok).sort((a,b)=>a-b);if(!valid.length)return[];
+  const maxE=valid[Math.floor(0.95*(valid.length-1))];if(maxE<minExc)return[];
   const enter=Math.max(minExc,0.4*maxE),exit=Math.max(minExc*0.35,0.18*maxE);
-  const segs=[];let inSeg=false,start=0,lastLow=0;
+  const segs=[];let inSeg=false,start=0,lastLow=0;const e0=exc.find(ok);let seenLow=ok(e0)&&e0<enter*0.7;
   for(let i=0;i<exc.length;i++){
     const e=exc[i];if(!ok(e))continue;
-    if(!inSeg){if(e<exit)lastLow=i;if(e>=enter){inSeg=true;start=lastLow;}}
+    // a rep must begin from the resting position — ignore movement that was already under way at the start
+    if(!inSeg){if(e<exit){lastLow=i;seenLow=true;}if(e>=enter&&seenLow){inSeg=true;start=lastLow;}}
     else if(e<exit){segs.push([start,i]);inSeg=false;lastLow=i;}
   }
   if(inSeg)segs.push([start,exc.length-1]);
@@ -573,8 +579,7 @@ MV.overhead={name:'Overhead reach',view:'front',frame:'upper',type:'rep',startPo
 MV.sts={name:'Sit-to-stand',view:'side',frame:'full',type:'rep',startPose:'sit',minExc:0.3,dir:'max',
   // Reps are found from how far the hips rise, in torso-lengths — robust to chair, clothing and camera angle
   signal:(f,ctx)=>{const h=mid(f.k[P.LH],f.k[P.RH]);return h&&ctx.bTorso?-h.y/ctx.bTorso:null;},
-  prep:ctx=>{ctx.bTorso=baseMed(ctx,f=>d2(mid(f.k[P.LS],f.k[P.RS]),mid(f.k[P.LH],f.k[P.RH])))||
-    med(ctx.frames.map(f=>d2(mid(f.k[P.LS],f.k[P.RS]),mid(f.k[P.LH],f.k[P.RH]))));},
+  prep:ctx=>{ctx.bTorso=med(ctx.frames.map(f=>d2(mid(f.k[P.LS],f.k[P.RS]),mid(f.k[P.LH],f.k[P.RH]))));},
   rep:(ctx,seg)=>{const w=winOf(ctx,seg,3);const fr=ctx.frames;const rel=relW(w,[ctx.S.S,ctx.S.H,ctx.S.K,ctx.S.A]);
     const rise=fr.slice(seg.a,seg.p+1);
     const topH=maxv(fr.slice(seg.a,seg.b+1).map(f=>M.hip2(f,ctx)));
@@ -742,7 +747,7 @@ function analyzeMovement(id,frames){
   try{
     if(def.type==='rep'){
       const raw=ctx.frames.map(f=>{try{return def.signal(f,ctx);}catch(e){return null;}});
-      const s=smooth(raw);const b=startValue(ts,s,def.dir);
+      const s=smooth(raw);const b=startValue(ts,s,def.dir,def.minExc);
       const exc=s.map(v=>ok(v)&&ok(b)?(def.dir==='min'?b-v:v-b):null);
       const segs=detectSegments(ts,exc,def.minExc);
       res.repCount=segs.length;
@@ -758,11 +763,11 @@ function analyzeMovement(id,frames){
     }else if(def.type==='hold'){
       const lift=smooth(ctx.frames.map(f=>{try{return def.lift(f,ctx);}catch(e){return null;}}));
       const thr=0.05;
-      const L=detectSegments(ts,lift.map(v=>ok(v)?v:null),thr,1.0).map(x=>({...x,side:'L'}));
-      const R=detectSegments(ts,lift.map(v=>ok(v)?-v:null),thr,1.0).map(x=>({...x,side:'R'}));
+      const L=detectSegments(ts,lift.map(v=>ok(v)?v:null),thr,2.0).map(x=>({...x,side:'L'}));
+      const R=detectSegments(ts,lift.map(v=>ok(v)?-v:null),thr,2.0).map(x=>({...x,side:'R'}));
       const segs=[...L,...R].sort((x,y)=>x.a-y.a);
       res.repCount=segs.length;
-      segs.slice(0,4).forEach(seg=>{const m=def.hold(ctx,seg,seg.side);res.reps.push({t0:ts[seg.a],t1:ts[seg.b],tp:ts[Math.round((seg.a+seg.b)/2)],m,flags:def.eval(m,def)});});
+      segs.slice(0,8).forEach(seg=>{const m=def.hold(ctx,seg,seg.side);res.reps.push({t0:ts[seg.a],t1:ts[seg.b],tp:ts[Math.round((seg.a+seg.b)/2)],m,flags:def.eval(m,def)});});
     }else if(def.type==='gait'){
       analyzeGait(ctx,res);
     }else if(def.type==='march'){
@@ -782,7 +787,10 @@ function analyzeMovement(id,frames){
     if(away)res.angleNote='The client was facing away from the camera — side-to-side measures need the coach to confirm.';
     else if(worst>22)res.angleNote='The client was turned about '+Math.round(worst)+'° from the camera — side-to-side measures need the coach to confirm.';
   }
-  res.flags=persistFlags(res.reps.map(r=>r.flags),def.persist);
+  let basis=res.reps;
+  if(def.type==='hold'&&res.reps.length){const best={};res.reps.forEach(r=>{const k=r.m.side;if(!best[k]||r.m.time.v>best[k].m.time.v)best[k]=r;});basis=Object.values(best);
+    res.attempts=res.reps.length;res.completed=res.reps.filter(r=>r.m.time.v>=def.target-0.5).length;}
+  res.flags=persistFlags(basis.map(r=>r.flags),def.persist);
   res.score=res.reps.length?scoreFrom(res.flags):null;
   const nc=res.flags.filter(f=>f.sev==='c').length;
   res.confidence=!res.reps.length?null:(nc>=Math.ceil(res.flags.length/2)?'Low':(nc>0||res.quality.label==='Medium')?'Medium':'High');
@@ -860,7 +868,7 @@ const GUIDE={
   squat:{cam:'Hip height (about 1 m), standing upright, 2–3 m away',pos:'Face the camera. Feet shoulder-width, toes slightly out.',hands:'Arms straight out in front, level with the floor.',instr:'Stand still for 2 seconds, then do 3 slow squats. Go as low as is comfortable and stand fully up between reps.',target:3,cap:45,still:'Stand tall and still',go:'Squat'},
   hinge:{cam:'Hip height, 2–3 m away',pos:'Turn sideways — shoulder toward the camera. Soft knees.',hands:'Arms hang straight down.',instr:'Stand still, then 3 hip hinges: push the hips back until the back of the thighs stretch, then stand tall.',target:3,cap:45,still:'Stand tall and still',go:'Hinge'},
   lunge:{cam:'Hip height, 2–3 m away',pos:'Sideways to the camera, with room in front and behind.',hands:'Hands on hips.',instr:'Stand still, then 3 forward lunges. Step forward, lower the back knee toward the floor, push back to standing.',target:3,cap:50,still:'Stand tall and still',go:'Lunge'},
-  balance:{cam:'Hip height, 2–3 m away',pos:'Face the camera. Keep a wall or chair nearby for safety.',hands:'Arms relaxed at the sides.',instr:'Stand still, then lift one foot and hold for 10 seconds. Lower it. Then the other foot for 10 seconds, then the first foot again.',target:3,cap:70,still:'Stand on both feet',go:'Lift one foot'},
+  balance:{cam:'Hip height, 2–3 m away',pos:'Face the camera. Keep a wall or chair nearby for safety.',hands:'Arms relaxed at the sides.',instr:'Stand still, then lift one foot and hold for 10 seconds. Lower it. Then the other foot for 10 seconds, then the first foot again. If the foot comes down early, rest and try again.',target:3,cap:90,still:'Stand on both feet',go:'Lift one foot'},
   overhead:{cam:'Chest height, 2–3 m away. Leave room above the head.',pos:'Face the camera.',hands:'Start with arms by the sides. Keep elbows straight.',instr:'Stand still, then raise both arms overhead as high as possible and lower them fully. 3 times.',target:3,cap:45,still:'Arms down, stand still',go:'Reach up'},
   sts:{cam:'Seat height (about 0.5 m), 2–3 m away',pos:'Sit sideways to the camera on a firm chair without armrests.',hands:'Arms crossed on the chest.',instr:'Sit still, then stand up fully and sit back down, 3 times, at a steady pace.',warn:'Stay sideways for all 3 reps. Do not turn to face the camera between reps.',target:3,cap:50,still:'Sit tall and still',go:'Stand up'},
   lateralLunge:{cam:'Hip height, 2–3 m away',pos:'Face the camera with room to step wide on both sides.',hands:'Hands on hips.',instr:'Stand still, then step wide to one side and bend that knee, keeping the other leg straight. Come back. Alternate sides — 3 in total.',target:3,cap:50,still:'Stand tall and still',go:'Step wide'},
@@ -955,8 +963,7 @@ async function openCamera(){
   if(isMobile&&window.innerHeight>window.innerWidth){
     const s0=track.getSettings?track.getSettings():{};
     if(s0.width&&s0.height&&s0.width>s0.height){
-      try{await track.applyConstraints({aspectRatio:{exact:9/16},height:{ideal:1280},resizeMode:'crop-and-scale'});}
-      catch(e){try{await track.applyConstraints({aspectRatio:{ideal:9/16},resizeMode:'crop-and-scale'});}catch(e2){}}
+      try{await Promise.race([track.applyConstraints({aspectRatio:{ideal:9/16},resizeMode:'crop-and-scale'}),sleep(2000)]);}catch(e){}
     }
   }
   const v=$('vid');v.srcObject=stream;
@@ -1091,6 +1098,7 @@ function positionChecks(f){
   const id=S.list[S.mi],def=MV[id],W=S.W,H=S.H,out=[];
   if(!f||!f.k){out.push({l:'Person',ok:false,m:'No one in view',s:'Step into the frame',block:true});return out;}
   const k=f.k,inF=p=>p&&p.v>0.5&&p.x>W*0.01&&p.x<W*0.99&&p.y>H*0.005&&p.y<H*0.995;
+  const sw=d2(k[P.LS],k[P.RS]),tl=d2(mid(k[P.LS],k[P.RS]),mid(k[P.LH],k[P.RH]));
   const need=def.frame==='upper'?[P.LS,P.RS,P.LE,P.RE,P.LH,P.RH]:[P.LS,P.RS,P.LH,P.RH,P.LK,P.RK,P.LA,P.RA];
   const seen=need.filter(i=>inF(k[i])).length/need.length;
   const bodyOk=seen>=(def.view==='side'?0.6:0.85);
@@ -1107,13 +1115,15 @@ function positionChecks(f){
     if(!inF(k[P.LH])&&!inF(k[P.RH])){dOk=false;dMsg='Move back — hips not in view';}
     else if(id==='overhead'&&k[P.NOSE].y<H*0.24){dOk=false;dMsg='Move back — leave room above the head';}
   }
-  // facing
-  const sw=d2(k[P.LS],k[P.RS]),tl=d2(mid(k[P.LS],k[P.RS]),mid(k[P.LH],k[P.RH]));
+  // facing (sw/tl defined above)
   const ratio=tl?sw/tl:1;const yd=yawDev(f),away=facingAway(f);
   const fOk=def.view==='front'?(ratio>0.42&&!away&&!(ok(yd)&&yd>20)):(ratio<0.34&&!(ok(yd)&&yd<50));
   const fMsg=def.view==='front'?(away?'Face the camera — the client is facing away':'Turn to face the camera squarely'):'Turn fully sideways — shoulder to the camera';
   out.push({l:'Body in view',ok:bodyOk,m:bodyOk?'':'Whole body not in view',s:'Adjust so the body is inside the box',block:true});
   out.push({l:'Distance',ok:dOk,m:dMsg,s:'',block:true});
+  if(MV[id].startPose==='sit'){
+    const drop=mean([k[P.LK].y-k[P.LH].y,k[P.RK].y-k[P.RH].y]);const seated=tl&&ok(drop)?drop<0.45*tl:true;
+    out.push({l:'Seated',ok:seated,m:seated?'':'Sit down on the chair',s:'The countdown starts once the client is seated',block:true});}
   out.push({l:def.view==='front'?'Facing camera':'Side-on',ok:fOk,m:fOk?'':fMsg,s:'',block:true});
   if(S.tilt&&performance.now()-S.tilt.t<3000){const up=Math.abs(S.tilt.b)>62||Math.abs(S.tilt.g)>62;out.push({l:'Phone upright',ok:up,m:up?'':'Stand the phone upright',s:'Lean it against something vertical',block:false});}
   if(S.lum){const dark=S.lum.mean<50,back=ok(S.lum.inside)&&ok(S.lum.outside)&&S.lum.outside-S.lum.inside>45;
@@ -1141,7 +1151,7 @@ function startCountdown(){
 // ── RECORDING ───────────────────────────────────────────────────────────
 function pickMime(){if(!window.MediaRecorder)return null;for(const m of['video/webm;codecs=vp8','video/webm','video/mp4;codecs=avc1','video/mp4'])if(MediaRecorder.isTypeSupported(m))return m;return'';}
 function startRecording(){
-  S.liveFrames=[];S.liveThumbs=[];S.lastCount=0;S.finishAt=0;S.liveCtx=null;S.holdStart=0;S.chunks=[];
+  S.liveFrames=[];S.liveThumbs=[];S.lastCount=0;S.finishAt=0;S.liveCtx=null;S.holdStart=0;S.chunks=[];S.failSeen=0;S.holdInfo=null;
   S.mime=pickMime();S.rec=null;
   if(S.mime!==null){try{S.rec=new MediaRecorder(S.stream,S.mime?{mimeType:S.mime,videoBitsPerSecond:2500000}:undefined);S.rec.ondataavailable=e=>{if(e.data&&e.data.size)S.chunks.push(e.data);};S.rec.start(500);}catch(e){console.warn('Recorder unavailable',e);S.rec=null;}}
   S.recStart=performance.now();
@@ -1169,7 +1179,12 @@ function recordStep(f,v){
     if(up&&!S.holdStart)S.holdStart=t;if(!up)S.holdStart=0;
     const held=S.holdStart?t-S.holdStart:0;
     $('holdbar').classList.toggle('on',up);$('holdfill').style.width=Math.min(100,held/10*100)+'%';
-    bigText(up?(held>=10?'Well done — lower the foot':'Hold · '+Math.floor(held)+' s'):(S.lastCount===0?'Lift one foot':S.lastCount===1?'Now the other foot':'First foot again'),up?'Keep steady':'Hold for 10 seconds');
+    if(S.frameN%12===0){const h=holdAttempts(S.liveFrames);
+      if(h.failed>(S.failSeen||0)){S.failSeen=h.failed;speak('Foot down. Rest, then try again.');}
+      S.holdInfo=h;}
+    const hi=S.holdInfo||{completed:0,failed:0};
+    bigText(up?(held>=10?'Well done — lower the foot':'Hold · '+Math.floor(held)+' s'):(hi.completed===0?'Lift one foot':hi.completed===1?'Now the other foot':'First foot again'),
+      up?'Keep steady':('Hold for 10 seconds'+(hi.failed?' · '+hi.failed+' early foot-down'+(hi.failed>1?'s':''):'')));
     if(up&&held>=10&&Math.floor(held)===10&&S._said!==S.lastCount){S._said=S.lastCount;speak('Ten. Lower the foot.');}
   }
   if(S.frameN%12===0){
@@ -1180,18 +1195,27 @@ function recordStep(f,v){
   }
   if((S.finishAt&&t>=S.finishAt)||t>=g.cap)finishMovement();
 }
+function holdAttempts(frames){
+  const def=MV.balance;const out={completed:0,failed:0,lastSide:null};if(frames.length<20)return out;
+  const ctx=buildCtx(frames,def);try{def.prep(ctx);}catch(e){}
+  const fr=ctx.frames,n=fr.length,ts=fr.map(f=>f.t);if(n<15)return out;
+  const s=smooth(fr.map(f=>safeNum(()=>def.lift(f,ctx))));
+  const segs=[...detectSegments(ts,s.map(v=>ok(v)?v:null),0.05,2.0).map(x=>({...x,side:'L'})),...detectSegments(ts,s.map(v=>ok(v)?-v:null),0.05,2.0).map(x=>({...x,side:'R'}))]
+    .filter(x=>x.b<n-2).sort((a,b)=>a.a-b.a);
+  segs.forEach(x=>{const d=ts[x.b]-ts[x.a];if(d>=def.target-0.5){out.completed++;out.lastSide=x.side;}else out.failed++;});
+  return out;
+}
 function safeNum(fn){try{const v=fn();return ok(v)?v:null;}catch(e){return null;}}
 function liveCount(id,frames){
   const def=MV[id];if(frames.length<20)return 0;
   const ctx=buildCtx(frames,def);try{def.prep(ctx);}catch(e){}
   const fr=ctx.frames,n=fr.length,ts=fr.map(f=>f.t);if(n<15)return 0;
   const done=segs=>segs.filter(s=>s.b<n-2).length;
-  if(def.type==='rep'){const s=smooth(fr.map(f=>safeNum(()=>def.signal(f,ctx))));const b=startValue(ts,s,def.dir);if(!ok(b))return 0;
+  if(def.type==='rep'){const s=smooth(fr.map(f=>safeNum(()=>def.signal(f,ctx))));const b=startValue(ts,s,def.dir,def.minExc);if(!ok(b))return 0;
     return done(detectSegments(ts,s.map(v=>ok(v)?(def.dir==='min'?b-v:v-b):null),def.minExc));}
   if(def.type==='signed'){const s=smooth(fr.map(f=>safeNum(()=>def.signal(f,ctx))));const b=startValue(ts,s,'mid')??0;
     return done(detectSegments(ts,s.map(v=>ok(v)?v-b:null),def.minExc))+done(detectSegments(ts,s.map(v=>ok(v)?b-v:null),def.minExc));}
-  if(def.type==='hold'){const s=smooth(fr.map(f=>safeNum(()=>def.lift(f,ctx))));
-    return done(detectSegments(ts,s.map(v=>ok(v)?v:null),0.05,1.0))+done(detectSegments(ts,s.map(v=>ok(v)?-v:null),0.05,1.0));}
+  if(def.type==='hold'){const h=holdAttempts(frames);return h.completed;}
   if(def.type==='gait'){const r=analyzeMovement('gait',frames);return Math.max(0,(r.repCount||0)-(S.finishAt?0:0));}
   return 0;
 }
@@ -1351,6 +1375,7 @@ function reportHTML(){
     if(r.error)h+=`<div class="err">${esc(r.error)}</div>`;
     if(r.angleNote)h+=`<div class="err" style="background:#E8EBFB;color:var(--cc);margin-bottom:8px">${esc(r.angleNote)}</div>`;
     if(b)h+=`<div class="best">Best performance — ${esc(b.label)}: <b>${esc(b.txt)}</b></div>`;
+    if(q.id==='balance'&&r.attempts)h+=`<div class="mvr-sub" style="margin:-4px 0 10px">${r.completed} of ${r.attempts} attempts reached 10 seconds. Scored on the best hold on each side.</div>`;
     if(q.snaps&&q.snaps.length)h+=`<div class="snaps">${q.snaps.map(s=>`<figure><img src="${s.src}" alt="${esc(s.cap)}"><figcaption>${esc(s.cap)}</figcaption></figure>`).join('')}</div>`;
     if(r.reps&&r.reps.length&&def.show){
       const hasSide=r.reps.some(x=>x.m.side);
@@ -1367,7 +1392,7 @@ function reportHTML(){
   const notes=($('notes')&&$('notes').value||'').trim();
   if(notes)h+=`<section class="mvr"><h3>Coach notes</h3><p style="white-space:pre-wrap;margin-top:6px">${esc(notes)}</p></section>`;
   h+=`<section class="mvr"><h3>How to read this report</h3>
-    <p class="note" style="margin-top:6px">Each movement starts with a 2-second still position. Angles are measured relative to the client's own starting posture (adjustment capped at 12°), so camera height and clothing affect the result less. Scores start at 10: a red finding on depth or range removes 3 points, other red findings 2 (minor ones 1), yellow findings 1. A finding only counts if it shows in at least 2 of 3 reps (balance: in any hold). Readings where the joints were not clearly visible — often because of loose clothing — are marked <b>coach to confirm</b> and are not deducted; values marked * had low visibility.</p>
+    <p class="note" style="margin-top:6px">Each movement starts with a 2-second still position. Angles are measured relative to the client's own starting posture (adjustment capped at 12°), so camera height and clothing affect the result less. Scores start at 10: a red finding on depth or range removes 3 points, other red findings 2 (minor ones 1), yellow findings 1. A finding only counts if it shows in at least 2 of 3 reps (balance: scored on the best hold on each side). Readings where the joints were not clearly visible — often because of loose clothing — are marked <b>coach to confirm</b> and are not deducted; values marked * had low visibility.</p>
     <p class="note" style="margin-top:8px">This is a movement screen to guide exercise programming, measured with single-camera pose estimation. It is not a medical assessment or diagnosis. Accuracy depends on camera position, lighting and clothing; re-test under the same setup to track progress.</p></section>`;
   h+=`<p class="note" style="text-align:center;margin-top:10px">AGILE — Amod's Guided Integrative Longevity Exercise · agilefitness.in</p></div>`;
   return h;
