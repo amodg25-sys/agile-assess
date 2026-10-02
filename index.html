@@ -366,6 +366,14 @@ function detectSegments(ts,exc,minExc,minDur){
   });
 }
 
+// For two-sided movements: if a left and a right reading overlap in time, keep only the stronger one
+function signedSegs(ts,s,b,minExc){
+  const pos=detectSegments(ts,s.map(v=>ok(v)?v-b:null),minExc).map(x=>({...x,sgn:1,e:s[x.p]-b}));
+  const neg=detectSegments(ts,s.map(v=>ok(v)?b-v:null),minExc).map(x=>({...x,sgn:-1,e:b-s[x.p]}));
+  const all=[...pos,...neg].sort((x,y)=>y.e-x.e),kept=[];
+  for(const x of all){if(!kept.some(k=>{const ov=Math.min(k.b,x.b)-Math.max(k.a,x.a);return ov>0.4*Math.min(k.b-k.a,x.b-x.a);}))kept.push(x);}
+  return kept.sort((x,y)=>x.a-y.a);
+}
 // ── Context: baseline (still-stand/sit first ~2.4 s), side facing camera, offsets
 function buildCtx(frames,def){
   const good=frames.filter(f=>f.k&&f.k.length>=33);
@@ -491,10 +499,13 @@ MV.lunge={name:'Forward lunge',view:'side',frame:'full',type:'rep',startPose:'st
   prep:ctx=>{ctx.kOff=clamp(178-(baseMed(ctx,f=>minv([M.knee2(f,'L'),M.knee2(f,'R')]))??178),0,12);ctx.bTr=baseMed(ctx,M.trunkSide);
     ctx.floor=baseMed(ctx,f=>Math.max(f.k[P.LHE].y,f.k[P.RHE].y,f.k[P.LA].y,f.k[P.RA].y));ctx.bLeg=baseMed(ctx,M.legLen);},
   rep:(ctx,seg)=>{const w=winOf(ctx,seg);const rel=relW(w,[P.LH,P.LK,P.LA,P.RH,P.RK,P.RA]);
-    const f0=w[Math.floor(w.length/2)];const frontL=M.knee2(f0,'L')<M.knee2(f0,'R');
+    const f0=w[Math.floor(w.length/2)];
+    // front leg = the foot further forward in the direction the client faces (toe ahead of heel)
+    const face=Math.sign((f0.k[P.LF].x+f0.k[P.RF].x)-(f0.k[P.LHE].x+f0.k[P.RHE].x))||1;
+    const frontL=(f0.k[P.LA].x-f0.k[P.RA].x)*face>0;
     const FK=frontL?P.LK:P.RK,FA=frontL?P.LA:P.RA,FF=frontL?P.LF:P.RF,FHE=frontL?P.LHE:P.RHE,RK=frontL?P.RK:P.LK;
     return{
-      front:{v:Math.min(179,at(w,f=>minv([M.knee2(f,'L'),M.knee2(f,'R')]))+ctx.kOff),rel},
+      front:{v:Math.min(179,at(w,f=>M.knee2(f,frontL?'L':'R'))+ctx.kOff),rel},
       trunk:{v:Math.abs(at(w,M.trunkSide,ctx)-(ctx.bTr??0)),rel:relW(w,[ctx.S.S,ctx.S.H])},
       toe:{v:at(w,f=>{const dir=Math.sign(f.k[FF].x-f.k[FHE].x)||1;return((f.k[FK].x-f.k[FF].x)*dir)/d2(f.k[FK],f.k[FA]);}),rel:capRel(relW(w,[FK,FF,FHE]),'med')},
       rear:{v:at(w,f=>(ctx.floor-f.k[RK].y)/ctx.bLeg),rel:relW(w,[RK])},
@@ -597,10 +608,11 @@ MV.sts={name:'Sit-to-stand',view:'side',frame:'full',type:'rep',startPose:'sit',
   observe:['Knees caving in on the way up (needs a front view)','Pushing on thighs with hands','Feet sliding'],
 };
 
-MV.lateralLunge={name:'Lateral lunge',view:'front',frame:'full',type:'signed',startPose:'stand',minExc:20,
+MV.lateralLunge={name:'Lateral lunge',view:'front',frame:'full',type:'signed',startPose:'stand',minExc:0.6,
   frontalKeys:['val','lat'],
-  signal:f=>{const a=M.knee(f,'L'),b=M.knee(f,'R');return ok(a)&&ok(b)?b-a:null;}, // + = left knee more bent
-  prep:ctx=>{ctx.kOff=clamp(178-(baseMed(ctx,M.kneeAvg)??178),0,12);ctx.bLat=baseMed(ctx,M.trunkLat)??0;ctx.bVL=baseMed(ctx,f=>M.valgus(f,'L'))??0;ctx.bVR=baseMed(ctx,f=>M.valgus(f,'R'))??0;},
+  // Reps from the sideways shift of the hips (in hip-widths): one clear signal per lunge; + = toward the client's left
+  signal:(f,ctx)=>{const m=mid(f.k[P.LH],f.k[P.RH]);const dir=Math.sign(f.k[P.LH].x-f.k[P.RH].x)||1;return m&&ctx.bHW?(m.x*dir)/ctx.bHW:null;},
+  prep:ctx=>{ctx.bHW=baseMed(ctx,M.hipW)||med(ctx.frames.map(M.hipW));ctx.kOff=clamp(178-(baseMed(ctx,M.kneeAvg)??178),0,12);ctx.bLat=baseMed(ctx,M.trunkLat)??0;ctx.bVL=baseMed(ctx,f=>M.valgus(f,'L'))??0;ctx.bVR=baseMed(ctx,f=>M.valgus(f,'R'))??0;},
   rep:(ctx,seg,sgn)=>{const w=winOf(ctx,seg);const bent=sgn>0?'L':'R',str=sgn>0?'R':'L';const rel=relW(w,[P.LH,P.LK,P.LA,P.RH,P.RK,P.RA]);
     return{
       bent:{v:Math.min(179,at(w,f=>M.knee(f,bent))+ctx.kOff),rel},
@@ -748,9 +760,7 @@ function analyzeMovement(id,frames){
     }else if(def.type==='signed'){
       const raw=ctx.frames.map(f=>{try{return def.signal(f,ctx);}catch(e){return null;}});
       const s=smooth(raw);const b=startValue(ts,s,'mid')??0;
-      const pos=detectSegments(ts,s.map(v=>ok(v)?v-b:null),def.minExc).map(x=>({...x,sgn:1}));
-      const neg=detectSegments(ts,s.map(v=>ok(v)?b-v:null),def.minExc).map(x=>({...x,sgn:-1}));
-      const segs=[...pos,...neg].sort((x,y)=>x.a-y.a);
+      const segs=signedSegs(ts,s,b,def.minExc);
       res.repCount=segs.length;
       segs.slice(0,6).forEach(seg=>{const m=def.rep(ctx,seg,seg.sgn);res.reps.push({t0:ts[seg.a],t1:ts[seg.b],tp:ts[seg.p],m,flags:def.eval(m,def),sgn:seg.sgn});});
     }else if(def.type==='hold'){
@@ -829,7 +839,9 @@ function analyzeMarch(ctx,res){
   const liftL=smooth(fr.map(f=>(ctx.bKL-f.k[P.LK].y)/ctx.bThigh*100));
   const liftR=smooth(fr.map(f=>(ctx.bKR-f.k[P.RK].y)/ctx.bThigh*100));
   const sL=detectSegments(ts,liftL,15,0.2),sR=detectSegments(ts,liftR,15,0.2);
-  const pL=sL.map(s=>liftL[s.p]),pR=sR.map(s=>liftR[s.p]);
+  const rawL=fr.map(f=>(ctx.bKL-f.k[P.LK].y)/ctx.bThigh*100),rawR=fr.map(f=>(ctx.bKR-f.k[P.RK].y)/ctx.bThigh*100);
+  const peak=(raw,sg)=>{let m=null;for(let i=sg.a;i<=sg.b;i++)if(ok(raw[i])&&(m==null||raw[i]>m))m=raw[i];return m;};
+  const pL=sL.map(x=>peak(rawL,x)),pR=sR.map(x=>peak(rawR,x));
   const rel=relOf(mean(fr.map(f=>vis(f,FULL_IDS))));
   const single=fr.filter((f,i)=>(liftL[i]>25||liftR[i]>25));
   const drop=med(single.map((f,i)=>{const lUp=(ctx.bKL-f.k[P.LK].y)>(ctx.bKR-f.k[P.RK].y);return(M.hipLine(f)-ctx.bHip)*(lUp?-1:1);}));
@@ -1213,7 +1225,7 @@ function liveCount(id,frames){
   if(def.type==='rep'){const s=smooth(fr.map(f=>safeNum(()=>def.signal(f,ctx))));const b=startValue(ts,s,def.dir,def.minExc);if(!ok(b))return 0;
     return done(detectSegments(ts,s.map(v=>ok(v)?(def.dir==='min'?b-v:v-b):null),def.minExc));}
   if(def.type==='signed'){const s=smooth(fr.map(f=>safeNum(()=>def.signal(f,ctx))));const b=startValue(ts,s,'mid')??0;
-    return done(detectSegments(ts,s.map(v=>ok(v)?v-b:null),def.minExc))+done(detectSegments(ts,s.map(v=>ok(v)?b-v:null),def.minExc));}
+    return done(signedSegs(ts,s,b,def.minExc));}
   if(def.type==='hold'){const h=holdAttempts(frames);return h.completed;}
   if(def.type==='gait'){const r=analyzeMovement('gait',frames);return Math.max(0,(r.repCount||0)-(S.finishAt?0:0));}
   return 0;
